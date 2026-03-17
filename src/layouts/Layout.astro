@@ -968,6 +968,11 @@ function disableAnimation() {
 				"0ms",
 			);
 
+			// 开发模式下清除Swup缓存，避免HMR导致的布局问题
+			if (import.meta.env.DEV) {
+				window.swup.cache.clear();
+			}
+
 			// 简化navbar处理逻辑
 			if (bannerEnabled) {
 				const navbar = document.getElementById("navbar-wrapper");
@@ -986,6 +991,37 @@ function disableAnimation() {
 			initFancybox();
 			checkKatex();
 			initCustomScrollbar();
+
+			// 同步布局class - 确保在内容替换后立即同步布局状态
+			const currentPath = window.location.pathname;
+			const isHomePageNow = pathsEqual(currentPath, url("/"));
+			const bannerWrapper = document.getElementById("banner-wrapper");
+			const mainContentWrapper = document.querySelector(".absolute.w-full.z-30");
+			const bodyElement = document.querySelector("body");
+
+			if (bodyElement) {
+				if (isHomePageNow) {
+					bodyElement.classList.add("is-home");
+				} else {
+					bodyElement.classList.remove("is-home");
+				}
+			}
+
+			if (bannerWrapper && mainContentWrapper) {
+				if (isHomePageNow) {
+					bannerWrapper.classList.remove("mobile-hide-banner");
+					mainContentWrapper.classList.remove("mobile-main-no-banner");
+				} else {
+					bannerWrapper.classList.add("mobile-hide-banner");
+					mainContentWrapper.classList.add("mobile-main-no-banner");
+				}
+			}
+
+			// 同步navbar的data-is-home属性
+			const navbar = document.getElementById("navbar");
+			if (navbar) {
+				navbar.setAttribute("data-is-home", isHomePageNow.toString());
+			}
 
 			// 检查当前页面是否为文章页面（有TOC元素）
 			const tocWrapper = document.getElementById("toc-wrapper");
@@ -1012,7 +1048,6 @@ function disableAnimation() {
 			}
 
 			// 重新初始化semifull模式的滚动检测
-			const navbar = document.getElementById("navbar");
 			if (navbar) {
 				const transparentMode = navbar.getAttribute(
 					"data-transparent-mode",
@@ -1077,7 +1112,8 @@ function disableAnimation() {
 					}
 				}
 
-				// Control mobile banner visibility based on page with improved staging animation
+				// Control mobile banner visibility based on page
+				// 关键修复：立即同步更新class，避免开发模式下HMR与Swup缓存冲突导致的布局错乱
 				const bannerWrapper = document.getElementById("banner-wrapper");
 				const mainContentWrapper = document.querySelector(
 					".absolute.w-full.z-30",
@@ -1085,26 +1121,13 @@ function disableAnimation() {
 
 				if (bannerWrapper && mainContentWrapper) {
 					if (isHomePage) {
-						// 首页：延迟移除隐藏类，让banner和内容优雅地出现
-						setTimeout(() => {
-							bannerWrapper.classList.remove(
-								"mobile-hide-banner",
-							);
-						}, 100);
-						setTimeout(() => {
-							mainContentWrapper.classList.remove(
-								"mobile-main-no-banner",
-							);
-						}, 150);
+						// 首页：立即移除隐藏类，确保布局正确
+						bannerWrapper.classList.remove("mobile-hide-banner");
+						mainContentWrapper.classList.remove("mobile-main-no-banner");
 					} else {
-						// 非首页：分阶段隐藏，先隐藏banner，再移动内容
+						// 非首页：立即添加隐藏类
 						bannerWrapper.classList.add("mobile-hide-banner");
-						// 延迟移动内容，让banner先完全消失
-						setTimeout(() => {
-							mainContentWrapper.classList.add(
-								"mobile-main-no-banner",
-							);
-						}, 100);
+						mainContentWrapper.classList.add("mobile-main-no-banner");
 					}
 				}
 
@@ -1135,6 +1158,31 @@ function disableAnimation() {
 				top: 0,
 				behavior: "instant",
 			});
+
+			// 最终布局同步保障 - 确保页面完全加载后布局状态正确
+			const currentPath = window.location.pathname;
+			const isHomePageNow = pathsEqual(currentPath, url("/"));
+			const bodyElement = document.querySelector("body");
+			const bannerWrapper = document.getElementById("banner-wrapper");
+			const mainContentWrapper = document.querySelector(".absolute.w-full.z-30");
+
+			if (bodyElement) {
+				if (isHomePageNow) {
+					bodyElement.classList.add("is-home");
+				} else {
+					bodyElement.classList.remove("is-home");
+				}
+			}
+
+			if (bannerWrapper && mainContentWrapper) {
+				if (isHomePageNow) {
+					bannerWrapper.classList.remove("mobile-hide-banner");
+					mainContentWrapper.classList.remove("mobile-main-no-banner");
+				} else {
+					bannerWrapper.classList.add("mobile-hide-banner");
+					mainContentWrapper.classList.add("mobile-main-no-banner");
+				}
+			}
 
 			// 同步主题状态 - 解决从首页进入文章页面时代码块渲染问题
 			const storedTheme = localStorage.getItem("theme") || DEFAULT_THEME;
